@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { api } from "../lib/api";
 import { useApp } from "../context/useApp";
+import Pagination from "../components/Pagination";
+import ProductImage from "../components/ProductImage";
 
 type Product = {
   _id?: string;
@@ -11,9 +13,22 @@ type Product = {
   stock: number;
 };
 
+type ProductListResponse = {
+  items: Product[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+};
+
+const PRODUCTS_PER_PAGE = 8;
+
 export default function AdminProducts() {
   const { user } = useApp();
   const [items, setItems] = useState<Product[]>([]);
+  const [page, setPage] = useState(1);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
   const [form, setForm] = useState<Product>({
     title: "",
     price: 0,
@@ -25,15 +40,20 @@ export default function AdminProducts() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (nextPage = page) => {
     setLoading(true);
     try {
-      const res = await api.get("/products");
-      setItems(res.data);
+      const res = await api.get<ProductListResponse>("/products", {
+        params: { page: nextPage, limit: PRODUCTS_PER_PAGE },
+      });
+      setItems(res.data.items);
+      setTotalItems(res.data.total);
+      setTotalPages(res.data.totalPages);
+      setPage(res.data.page);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [page]);
 
   useEffect(() => {
     load();
@@ -56,7 +76,7 @@ export default function AdminProducts() {
       }
       setForm({ title: "", price: 0, description: "", image: "", stock: 0 });
       setEditingId(null);
-      await load();
+      await load(1);
     } finally {
       setSubmitting(false);
     }
@@ -75,7 +95,7 @@ export default function AdminProducts() {
   const del = async (id: string) => {
     if (!confirm("Delete this product?")) return;
     await api.delete(`/products/${id}`);
-    load();
+    await load(page);
   };
 
   return (
@@ -152,7 +172,7 @@ export default function AdminProducts() {
                 onChange={(e) => setForm({ ...form, image: e.target.value })}
               />
               {form.image && (
-                <img
+                <ProductImage
                   src={form.image}
                   alt="Preview"
                   className="mt-2 h-20 w-20 object-cover rounded-lg border-2 border-gray-200"
@@ -200,7 +220,7 @@ export default function AdminProducts() {
         {/* Right Panel - Existing Products List */}
         <div className="space-y-4">
           <h3 className="text-lg font-semibold text-gray-900">
-            Existing Products ({items.length})
+            Existing Products ({totalItems})
           </h3>
           {loading ? (
             <div className="bg-white rounded-xl border-2 border-sky-200 p-8 text-center">
@@ -212,50 +232,66 @@ export default function AdminProducts() {
               <p>No products yet. Add one using the form.</p>
             </div>
           ) : (
-            <div className="space-y-3 max-h-[calc(100vh-16rem)] overflow-y-auto pr-1">
-              {items.map((p) => (
-                <div
-                  key={p._id}
-                  className={`bg-white rounded-xl border-2 p-4 flex gap-4 shadow-sm hover:shadow-md transition-all ${
-                    editingId === p._id
-                      ? "border-sky-500 ring-2 ring-sky-200"
-                      : "border-sky-200"
-                  }`}
-                >
-                  <img
-                    src={
-                      p.image || "https://via.placeholder.com/80?text=No+Image"
-                    }
-                    alt={p.title}
-                    className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg border-2 border-gray-200 shrink-0"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-semibold text-gray-900 truncate">
-                      {p.title}
+            <div className="space-y-4">
+              <div className="rounded-xl border-2 border-sky-200 bg-white p-4 text-sm text-gray-600">
+                Managing page <span className="font-semibold text-gray-900">{page}</span> of{" "}
+                <span className="font-semibold text-gray-900">{totalPages}</span>
+              </div>
+
+              <div className="space-y-3 pr-1">
+                {items.map((p) => (
+                  <div
+                    key={p._id}
+                    className={`bg-white rounded-xl border-2 p-4 flex gap-4 shadow-sm hover:shadow-md transition-all ${
+                      editingId === p._id
+                        ? "border-sky-500 ring-2 ring-sky-200"
+                        : "border-sky-200"
+                    }`}
+                  >
+                    <ProductImage
+                      src={p.image}
+                      alt={p.title}
+                      className="h-16 w-16 sm:h-20 sm:w-20 object-cover rounded-lg border-2 border-gray-200 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900 truncate">
+                        {p.title}
+                      </div>
+                      <div className="text-gray-600 text-sm mt-0.5">
+                        ₹{p.price}
+                      </div>
+                      <div className="text-gray-500 text-xs mt-1">
+                        Stock: {p.stock}
+                      </div>
                     </div>
-                    <div className="text-gray-600 text-sm mt-0.5">
-                      ₹{p.price}
-                    </div>
-                    <div className="text-gray-500 text-xs mt-1">
-                      Stock: {p.stock}
+                    <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                      <button
+                        onClick={() => edit(p)}
+                        className="text-sky-600 hover:bg-sky-50 px-3 py-1.5 rounded-lg font-medium text-sm border border-sky-200 transition-colors"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        onClick={() => del(p._id!)}
+                        className="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium text-sm border border-red-200 transition-colors"
+                      >
+                        Delete
+                      </button>
                     </div>
                   </div>
-                  <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-                    <button
-                      onClick={() => edit(p)}
-                      className="text-sky-600 hover:bg-sky-50 px-3 py-1.5 rounded-lg font-medium text-sm border border-sky-200 transition-colors"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => del(p._id!)}
-                      className="text-red-600 hover:bg-red-50 px-3 py-1.5 rounded-lg font-medium text-sm border border-red-200 transition-colors"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+                ))}
+              </div>
+
+              <Pagination
+                page={page}
+                totalPages={totalPages}
+                totalItems={totalItems}
+                pageSize={PRODUCTS_PER_PAGE}
+                itemLabel="products"
+                onPageChange={(nextPage) => {
+                  void load(nextPage);
+                }}
+              />
             </div>
           )}
         </div>

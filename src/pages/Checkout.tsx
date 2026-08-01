@@ -3,6 +3,7 @@ import { useApp } from "../context/useApp";
 import { api } from "../lib/api";
 import axios from "axios";
 import type { CartItem } from "../context/Context";
+import ProductImage from "../components/ProductImage";
 
 declare global {
   interface Window {
@@ -183,7 +184,7 @@ export default function Checkout() {
                   >
                     {/* Product Image */}
                     <div className="shrink-0">
-                      <img
+                      <ProductImage
                         src={item.image}
                         alt={item.title}
                         className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-lg border-2 border-gray-200"

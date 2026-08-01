@@ -3,6 +3,7 @@ import { useApp } from "../context/useApp";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
 import type { CartItem } from "../context/Context";
+import ProductImage from "../components/ProductImage";
 
 function ExpandableDescription({ description }: { description: string }) {
   const [expanded, setExpanded] = useState(false);
@@ -77,7 +78,7 @@ function ImageModal({
             />
           </svg>
         </button>
-        <img
+        <ProductImage
           src={image}
           alt={title}
           className="max-w-full max-h-[85vh] object-contain rounded-lg shadow-2xl"
@@ -207,7 +208,7 @@ export default function Cart() {
                         }
                         className="cursor-pointer hover:opacity-80 transition-opacity"
                       >
-                        <img
+                        <ProductImage
                           src={item.image}
                           alt={item.title}
                           className="h-20 w-20 sm:h-24 sm:w-24 object-cover rounded-lg border-2 border-gray-200"
